@@ -3,6 +3,8 @@
 /*****************8
  * New version since season 13
  * 24.10.2014
+ *
+ * 09.05.2017 Added XP field (not distributed player XP)
  */
 
 session_start();
@@ -42,7 +44,7 @@ function get_skill($elem) {
 	// return numeric value no matter if the skill is represented by balls or numbers
 	$value = $elem->textContent;
 
-	if ($spans->length > 0) {
+	if (isset($elem->length) and ($elem->length > 0)) {
 		$elem = $elem->firstChild;
 		if (($elem->nodeName != '#text') and ($elem->getAttribute('title'))) {
 			$value = $elem->getAttribute('title');
@@ -55,17 +57,17 @@ function get_skill($elem) {
 
 function fetch_players($teamID) {
     if ($teamID == 0) {
-        $url = 'http://rockingsoccer.com/bg/soccer/players';
+        $url = 'https://rockingsoccer.com/bg/soccer/players';
         $html = get_page($url);
         if (login_required($html)) {
             $html = do_login();
         }
         $html = get_page($url);
 
-        $url = 'http://rockingsoccer.com/bg/soccer/players/bsquad';
+        $url = 'https://rockingsoccer.com/bg/soccer/players/bsquad';
         $html.= get_page($url);
     } else {
-        $url = 'http://rockingsoccer.com/bg/soccer/info/team-'. intval($teamID) . '/players';
+        $url = 'https://rockingsoccer.com/bg/soccer/info/team-'. intval($teamID) . '/players';
         $html = get_page($url);
     }
 
@@ -92,7 +94,7 @@ function fetch_players($teamID) {
 }
 
 function get_player_info($id) {
-    $player['href'] = 'http://rockingsoccer.com/bg/soccer/info/player-' . intval($id);
+    $player['href'] = 'https://rockingsoccer.com/bg/soccer/info/player-' . intval($id);
 
     $html = get_page($player['href']);
     file_put_contents("player.html", $html);
@@ -146,7 +148,7 @@ function fetch_player_info($cells, $player) {
     $player['position'] = 'Unknown';
     $player['class'] = 0;
     $player['class_youth'] = '';
-    $player['xp'] = 0;
+    $player['xp'] = '';
     $player['skills_special'] = '';
     $player['fitness'] = 0;
     $player['club'] = '';
@@ -217,7 +219,7 @@ function fetch_player_info($cells, $player) {
 
     if ($cells->item($i)->hasChildNodes() and ($cells->item($i)->firstChild->nodeName == 'span') and preg_match('/star-[a-z]+-skill|numeric-skill/', $cells->item($i)->firstChild->getAttribute('class'))) {
         $player['class'] = trim(get_skill($cells->item($i)->firstChild));
-		if (preg_match_all('/[0-9]\.[0-9][0-9]/', $player['class'], $matches)) {
+		if (preg_match_all('/[0-9]+\.[0-9][0-9]/', $player['class'], $matches)) {
         // if (preg_match('/([0-9]\.[0-9]+)[^0-9]+-[^0-9]+([0-9.]+)/', $player['class'], $matches)) {
             $player['class'] = $matches[0][0];
             $player['class_youth'] = $matches[0][1];
@@ -230,9 +232,12 @@ function fetch_player_info($cells, $player) {
         }
     }
 
-    $player['xp'] = preg_replace('#[^0-9]#', '', trim($cells->item($i)->textContent));
-	if (++$i >= $cells->length) {
-		return $player;
+    $xp_string = trim($cells->item($i)->textContent);
+    if (preg_match('/^[0-9, ]+$/', $xp_string)) {
+        $player['xp'] = preg_replace('#[^0-9]*#', '', $cells->item($i)->textContent);
+        if (++$i >= $cells->length) {
+            return $player;
+        }
     }
 
     $player['skills_special'] = trim($cells->item($i)->textContent);
@@ -287,7 +292,7 @@ function store_players($team, $players) {
 	}
     $fp = fopen($filename, 'w');
     if ($fp) {
-        fwrite($fp, '"First name";"Last name";"Nationality";"Position";"Flank";"Main squad";"Class";"Youth class";"Fitness";"Injured";"Age";"U21";"Weekly wage";"Yearly wage";"Market value";"Talent";"Endurance";"Power";"Speed";"Blocking";"Dueling";"Passing";"Scoring";"Tactics";"Special attributes";"XP goalkeeping";"XP defense";"XP middfield";"XP attack";"ID";"URL";"Language";"Age factor";"Club";"National Team";"XP";' . "\n"); 
+        fwrite($fp, '"First name";"Last name";"Nationality";"Position";"Flank";"Main squad";"Class";"Youth class";"Fitness";"Injured";"Age";"U21";"Weekly wage";"Yearly wage";"Market value";"Talent";"Endurance";"Power";"Speed";"Blocking";"Dueling";"Passing";"Scoring";"Tactics";"Special attributes";"XP goalkeeping";"XP defense";"XP middfield";"XP attack";"XP";"ID";"URL";"Language";"Age factor";"Club";"National Team";' . "\n"); 
 
         foreach ($players as $id => $player) {
 			list($firstname,$lastname) = preg_split('/ /', $player['name'], 2);
@@ -321,6 +326,7 @@ function store_players($team, $players) {
             fwrite($fp, '"' . $player['xp_defender'] . '";');
             fwrite($fp, '"' . $player['xp_middfielder'] . '";');
             fwrite($fp, '"' . $player['xp_forward'] . '";');
+            fwrite($fp, '"' . $player['xp'] . '";');
 
             fwrite($fp, '"' . $id . '";');
             fwrite($fp, '"' . $player['href'] . '";');
@@ -329,7 +335,6 @@ function store_players($team, $players) {
             fwrite($fp, '"' . $player['club'] . '";');
 
             fwrite($fp, '"' . $player['nat_team'] . '";');
-            fwrite($fp, '"' . $player['xp'] . '";');
             fwrite($fp, "\n");
         }
 

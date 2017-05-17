@@ -1,5 +1,9 @@
 <?php
 
+/***************
+ * 09.05.2017 Support for HTTPS protocol in login() and get_page()
+ */
+
 function get_page($url, $nobody = false, $post=array()) {
     $ttl = 10;
     set_time_limit($ttl + 20);
@@ -24,7 +28,17 @@ function get_page($url, $nobody = false, $post=array()) {
     curl_setopt($ch, CURLOPT_COOKIEFILE, SCRIPT_DIR . $_SESSION['login'] . '_cookie.txt');
     curl_setopt($ch, CURLOPT_REFERER, $GLOBALS['url_referer']);
     curl_setopt($ch, CURLOPT_NOBODY, $nobody);
+
+	/* // the certificate is not needed (yet) 
+	// enable php_openssl.dll in php.ini
+	// downloaded from https://curl.haxx.se/ca/cacert.pem
+	// find the location using php -r "print_r(openssl_get_cert_locations());"
     curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+	curl_setopt($ch, CURLOPT_CAINFO, 'd:/tmp/openssl-1.0.1m/vc11/x86/cert.pem');
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+	curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+	 */
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     if (!empty($post)) {
         curl_setopt($ch, CURLOPT_POST, 1);
@@ -74,6 +88,14 @@ function login($url, $login, $pwd) {
     curl_setopt($ch, CURLOPT_COOKIESESSION, FALSE);
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $GLOBALS['credentials']);
+
+	/* // the certificate is not needed (yet)
+    curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+	curl_setopt($ch, CURLOPT_CAINFO, 'd:/tmp/openssl-1.0.1m/vc11/x86/cert.pem');
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+	curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+	 */
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
     log_write("curl_exec");
     $html = curl_exec($ch);
